@@ -16,11 +16,12 @@ public class ScriptElement
 
   public void addAttribute(String name, String value)
   {
-    attrs.put(name, value);
+    attrs.put(name.toLowerCase(), value);
   }
 
   public String getAttribute(String name)
   {
-    return attrs.get(name);
+  	if (!attrs.containsKey(name.toLowerCase())){ return null;}
+    return attrs.get(name.toLowerCase());
   }
 }

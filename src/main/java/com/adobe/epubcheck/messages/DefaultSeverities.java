@@ -316,6 +316,8 @@ class DefaultSeverities implements Severities
     severities.put(MessageId.SCP_008, Severity.USAGE);
     severities.put(MessageId.SCP_009, Severity.USAGE);
     severities.put(MessageId.SCP_010, Severity.USAGE);
+    severities.put(MessageId.SCP_011, Severity.ERROR);
+    severities.put(MessageId.SCP_012, Severity.ERROR);
   }
 
 }

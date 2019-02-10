@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.zip.ZipEntry;
@@ -15,6 +16,7 @@ import com.adobe.epubcheck.api.Report;
 import com.adobe.epubcheck.ctc.epubpackage.EpubPackage;
 import com.adobe.epubcheck.ctc.epubpackage.ManifestItem;
 import com.adobe.epubcheck.ctc.xml.ScriptTagHandler;
+import com.adobe.epubcheck.ctc.xml.ScriptElement;
 import com.adobe.epubcheck.ctc.xml.XMLContentDocParser;
 import com.adobe.epubcheck.messages.MessageId;
 import com.adobe.epubcheck.opf.DocumentValidator;
@@ -75,6 +77,27 @@ public class EpubScriptCheck implements DocumentValidator
           if (sh.getScriptElementCount() > 0)
           {
             report.info(fileToParse, FeatureEnum.SCRIPT, "tag");
+            //Now iterate the list here and look for any with "src" or "href" attributes
+            //The src/href attribute must only reference local files, and they must be present in the set.
+            Iterator<ScriptElement> scriptIT = sh.getScriptElements().iterator();
+            while (scriptIT.hasNext()) {
+            	ScriptElement curScript = scriptIT.next();
+            	String srcAttr = curScript.getAttribute("src");
+            	String hrefAttr = curScript.getAttribute("href");
+				String fileRef = srcAttr!=null?srcAttr:hrefAttr;
+            	if (fileRef != null){
+        		    if (fileRef.startsWith("http://") || fileRef.startsWith("https://")){
+		              report.message(MessageId.SCP_011, EPUBLocation.create(fileToParse), fileToParse, fileRef);
+        		    }else{
+        		    	String jsFile = epack.getManifestItemFileName(fileRef.replace("file://",""));
+        		    	ZipEntry jsEntry = this.zip.getEntry(jsFile);
+        		    	if (jsEntry == null){
+        		    		report.message(MessageId.SCP_012, EPUBLocation.create(fileToParse), fileToParse, fileRef);
+        		    	}
+        		    }
+            	}
+            }
+            
           }
           if (epack.getVersion() != EPUBVersion.VERSION_2)
           {

@@ -1118,4 +1118,17 @@ public class Epub30CheckExpandedTest extends AbstractEpubCheckTest
     testValidateDocument("valid/base-uri");
   }
 
+  @Test
+  public void testWebScript()
+  {
+    Collections.addAll(expectedErrors, MessageId.RSC_006, MessageId.SCP_011);
+    testValidateDocument("invalid/script-external-reference");
+  }
+  @Test
+  public void testMissingScript()
+  {
+    Collections.addAll(expectedErrors, MessageId.RSC_001, MessageId.SCP_012);
+    testValidateDocument("invalid/script-missing-reference");
+  }
+
 }
