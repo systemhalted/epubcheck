@@ -1,5 +1,6 @@
 package com.adobe.epubcheck.overlay;
 
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -12,14 +13,19 @@ import com.adobe.epubcheck.opf.XRefChecker;
 import com.adobe.epubcheck.util.EpubConstants;
 import com.adobe.epubcheck.util.HandlerUtil;
 import com.adobe.epubcheck.util.PathUtil;
+import com.adobe.epubcheck.vocab.PackageVocabs;
+import com.adobe.epubcheck.vocab.Property;
 import com.adobe.epubcheck.vocab.StructureVocab;
 import com.adobe.epubcheck.vocab.Vocab;
 import com.adobe.epubcheck.vocab.VocabUtil;
+import com.adobe.epubcheck.vocab.PackageVocabs.ITEM_PROPERTIES;
 import com.adobe.epubcheck.xml.XMLElement;
 import com.adobe.epubcheck.xml.XMLHandler;
 import com.adobe.epubcheck.xml.XMLParser;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 
 public class OverlayHandler implements XMLHandler
 {
@@ -37,6 +43,9 @@ public class OverlayHandler implements XMLHandler
   private boolean checkedUnsupportedXMLVersion;
 
   private Map<String, Vocab> vocabs = RESERVED_VOCABS;
+
+  private final Set<ITEM_PROPERTIES> requiredProperties = EnumSet.noneOf(ITEM_PROPERTIES.class);
+  private final Set<ITEM_PROPERTIES> allowedProperties = EnumSet.noneOf(ITEM_PROPERTIES.class);
 
   public OverlayHandler(ValidationContext context, XMLParser parser)
   {
@@ -76,6 +85,7 @@ public class OverlayHandler implements XMLHandler
     else if (name.equals("audio"))
     {
       processRef(e.getAttribute("src"), XRefChecker.Type.AUDIO);
+      processAudioSrc(e);
     }
     else if (name.equals("body") || name.equals("par"))
     {
@@ -92,7 +102,14 @@ public class OverlayHandler implements XMLHandler
   private void processSrc(XMLElement e)
   {
     processRef(e.getAttribute("src"), XRefChecker.Type.HYPERLINK);
-
+  }
+  
+  private void processAudioSrc(XMLElement e) {
+      String src = e.getAttribute("src");
+      if (src != null && PathUtil.isRemote(src))
+      {
+        requiredProperties.add(ITEM_PROPERTIES.REMOTE_RESOURCES);
+      }
   }
 
   private void processRef(String ref, XRefChecker.Type type)
@@ -126,6 +143,12 @@ public class OverlayHandler implements XMLHandler
 
   public void endElement()
   {
+	XMLElement e = parser.getCurrentElement();
+	String name = e.getName();
+    if (name.equals("smil"))
+    {
+      checkProperties();
+    }
   }
 
   public void ignorableWhitespace(char[] chars, int arg1, int arg2)
@@ -136,4 +159,19 @@ public class OverlayHandler implements XMLHandler
   {
   }
 
+  protected void checkProperties()
+  {
+    if (!context.ocf.isPresent()) // single file validation
+    {
+      return;
+    }
+
+    Set<ITEM_PROPERTIES> itemProps = Property.filter(context.properties, ITEM_PROPERTIES.class);
+
+    for (ITEM_PROPERTIES requiredProperty : Sets.difference(requiredProperties, itemProps))
+    {
+      report.message(MessageId.OPF_014, EPUBLocation.create(path),
+          PackageVocabs.ITEM_VOCAB.getName(requiredProperty));
+    }
+  }
 }
