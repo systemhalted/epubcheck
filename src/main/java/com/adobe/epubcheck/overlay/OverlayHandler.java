@@ -108,13 +108,11 @@ public class OverlayHandler implements XMLHandler
     if (start.compareTo(end) == 1) {
       // clipEnd is chronologically before clipBegin
       report.message(MessageId.MED_008, EPUBLocation.create(path, parser.getLineNumber(), parser.getColumnNumber()));
-      return;
     }
     
-    if (start.equals(end)) {
+    else if (start.equals(end)) {
       // clipBegin and clipEnd are equal
       report.message(MessageId.MED_009, EPUBLocation.create(path, parser.getLineNumber(), parser.getColumnNumber()));
-      return;
     }
   }
 
