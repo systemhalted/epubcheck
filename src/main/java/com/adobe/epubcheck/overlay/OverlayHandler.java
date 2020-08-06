@@ -20,8 +20,7 @@ import com.adobe.epubcheck.xml.XMLHandler;
 import com.adobe.epubcheck.xml.XMLParser;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import org.apache.batik.parser.ClockHandler;
-import org.apache.batik.parser.ClockParser;
+import org.daisy.util.xml.SmilClock;
 
 public class OverlayHandler implements XMLHandler
 {
@@ -88,46 +87,34 @@ public class OverlayHandler implements XMLHandler
   
   private void checkTime(String clipBegin, String clipEnd) {
   
-    class Handler implements ClockHandler {
-      float time;
-      public void clockValue(float t) {
-        time = t;
-      }
+    if (clipBegin == null || clipEnd == null) {
+      // missing clipBegin attribute will be reported invalid by the schema
+      // missing clipEnd attribute means clip plays to end so no comparisons needed
+      return;
     }
     
-    ClockParser p = new ClockParser(false);
-    Handler h = new Handler();
-    p.setClockHandler(h);
-    
-    float start = 0;
-    float end = 0;
+    SmilClock start;
+    SmilClock end;
     
     try {
-      if (clipBegin == null) {
-        // missing attribute will be reported invalid by the schema
-        return;
-      }
-      else {
-        p.parse(clipBegin);
-        start = h.time;
-      }
-      if (clipEnd != null) {
-        // clipEnd can be null if an end time is omitted
-        p.parse(clipEnd);
-        end = h.time;
-      }
+      start = new SmilClock(clipBegin);
+      end = new SmilClock(clipEnd);
     }
     catch (Exception ex) {
       // invalid clock time will be reported by the schema
       return;
     }
     
-    if (end != 0 && start > end) {
+    if (start.compareTo(end) == 1) {
+      // clipEnd is chronologically before clipBegin
       report.message(MessageId.MED_008, EPUBLocation.create(path, parser.getLineNumber(), parser.getColumnNumber()));
+      return;
     }
     
-    else if (start == end) {
+    if (start.equals(end)) {
+      // clipBegin and clipEnd are equal
       report.message(MessageId.MED_009, EPUBLocation.create(path, parser.getLineNumber(), parser.getColumnNumber()));
+      return;
     }
   }
 
