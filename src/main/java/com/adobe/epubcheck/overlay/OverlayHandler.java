@@ -20,6 +20,8 @@ import com.adobe.epubcheck.xml.XMLHandler;
 import com.adobe.epubcheck.xml.XMLParser;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import org.apache.batik.parser.ClockHandler;
+import org.apache.batik.parser.ClockParser;
 
 public class OverlayHandler implements XMLHandler
 {
@@ -37,7 +39,7 @@ public class OverlayHandler implements XMLHandler
   private boolean checkedUnsupportedXMLVersion;
 
   private Map<String, Vocab> vocabs = RESERVED_VOCABS;
-
+  
   public OverlayHandler(ValidationContext context, XMLParser parser)
   {
     this.context = context;
@@ -76,10 +78,56 @@ public class OverlayHandler implements XMLHandler
     else if (name.equals("audio"))
     {
       processRef(e.getAttribute("src"), XRefChecker.Type.AUDIO);
+      checkTime(e.getAttribute("clipBegin"), e.getAttribute("clipEnd"));
     }
     else if (name.equals("body") || name.equals("par"))
     {
       checkType(e.getAttributeNS(EpubConstants.EpubTypeNamespaceUri, "type"));
+    }
+  }
+  
+  private void checkTime(String clipBegin, String clipEnd) {
+  
+    class Handler implements ClockHandler {
+      float time;
+      public void clockValue(float t) {
+        time = t;
+      }
+    }
+    
+    ClockParser p = new ClockParser(false);
+    Handler h = new Handler();
+    p.setClockHandler(h);
+    
+    float start = 0;
+    float end = 0;
+    
+    try {
+      if (clipBegin == null) {
+        // missing attribute will be reported invalid by the schema
+        return;
+      }
+      else {
+        p.parse(clipBegin);
+        start = h.time;
+      }
+      if (clipEnd != null) {
+        // clipEnd can be null if an end time is omitted
+        p.parse(clipEnd);
+        end = h.time;
+      }
+    }
+    catch (Exception ex) {
+      // invalid clock time will be reported by the schema
+      return;
+    }
+    
+    if (end != 0 && start > end) {
+      report.message(MessageId.MED_008, EPUBLocation.create(path, parser.getLineNumber(), parser.getColumnNumber()));
+    }
+    
+    else if (start == end) {
+      report.message(MessageId.MED_009, EPUBLocation.create(path, parser.getLineNumber(), parser.getColumnNumber()));
     }
   }
 
@@ -135,5 +183,4 @@ public class OverlayHandler implements XMLHandler
   public void processingInstruction(String arg0, String arg1)
   {
   }
-
 }
