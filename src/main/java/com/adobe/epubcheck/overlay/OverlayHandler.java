@@ -1,5 +1,6 @@
 package com.adobe.epubcheck.overlay;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -37,6 +38,8 @@ public class OverlayHandler implements XMLHandler
   private boolean checkedUnsupportedXMLVersion;
 
   private Map<String, Vocab> vocabs = RESERVED_VOCABS;
+  
+  private Set<String> resourceRefs = new HashSet<String>();
 
   public OverlayHandler(ValidationContext context, XMLParser parser)
   {
@@ -108,9 +111,33 @@ public class OverlayHandler implements XMLHandler
           report.message(MessageId.MED_005, EPUBLocation.create(path, parser.getLineNumber(), parser.getColumnNumber()), ref, mimeType);
         }
       }
+      else {
+        String uniqueResource = getUniqueResource(ref);
+        if (!uniqueResource.equals("")) {
+          if (!OverlayTextRefs.setOverlayTextRef(uniqueResource, context.opfItem.get().getId())) {
+              report.message(MessageId.MED_011, EPUBLocation.create(path, parser.getLineNumber(), parser.getColumnNumber()), ref);
+          }
+        }
+      }
       context.xrefChecker.get().registerReference(path, parser.getLineNumber(),
           parser.getColumnNumber(), ref, type);
     }
+  }
+  
+  private String getUniqueResource(String src) {
+    int frag_start;
+    
+    if (src.indexOf("?") > 0) {
+      // shouldn't be a query string in a text reference but handling anyway
+      frag_start = src.indexOf("?");
+    }
+    else if (src.indexOf("#") > 0) {
+      frag_start = src.indexOf("#");
+	}
+    else {
+      frag_start = src.length();
+    }
+    return src.substring(0, frag_start);
   }
 
   private void processSeq(XMLElement e)
@@ -126,6 +153,12 @@ public class OverlayHandler implements XMLHandler
 
   public void endElement()
   {
+	XMLElement e = parser.getCurrentElement();
+	String name = e.getName();
+    if (name.equals("smil"))
+    {
+      checkItemReferences();
+    }
   }
 
   public void ignorableWhitespace(char[] chars, int arg1, int arg2)
@@ -134,6 +167,14 @@ public class OverlayHandler implements XMLHandler
 
   public void processingInstruction(String arg0, String arg1)
   {
+  }
+  
+  private void checkItemReferences() {
+
+    if(this.resourceRefs.isEmpty()) {
+    	return;
+    }
+    
   }
 
 }

@@ -40,6 +40,7 @@ import com.adobe.epubcheck.opf.MetadataSet.Metadata;
 import com.adobe.epubcheck.opf.ResourceCollection.Roles;
 import com.adobe.epubcheck.ops.OPSCheckerFactory;
 import com.adobe.epubcheck.overlay.OverlayCheckerFactory;
+import com.adobe.epubcheck.overlay.OverlayTextRefs;
 import com.adobe.epubcheck.util.EPUBVersion;
 import com.adobe.epubcheck.util.FeatureEnum;
 import com.adobe.epubcheck.util.PathUtil;
@@ -74,6 +75,7 @@ public class OPFChecker30 extends OPFChecker implements DocumentValidator
     map.put("text/css", CSSCheckerFactory.getInstance());
     contentCheckerFactoryMap.clear();
     contentCheckerFactoryMap.putAll(map);
+    OverlayTextRefs.clear();
   }
 
   @Override
@@ -179,6 +181,28 @@ public class OPFChecker30 extends OPFChecker implements DocumentValidator
         else {
           report.message(MessageId.RSC_006,
               EPUBLocation.create(path, item.getLineNumber(), item.getColumnNumber()), item.getPath());
+        }
+      }
+    }
+    
+    if (isBlessedItemType(mediatype, version)) {
+      // check whether media-overlay attribute needs to be specified
+      String mo = item.getMediaOverlay();
+      String docpath = item.getPath();
+      if (OverlayTextRefs.isReferencedByOverlay(docpath)) {
+        if (mo == null || mo.equals("")) {
+          // missing media-overlay attribute
+          report.message(MessageId.MED_010, EPUBLocation.create(path, item.getLineNumber(), item.getColumnNumber(), item.getPath()));
+        }
+        else if (!OverlayTextRefs.isCorrectOverlay(docpath,mo)) {
+          // media-overlay attribute references the wrong media overlay
+          report.message(MessageId.MED_012, EPUBLocation.create(path, item.getLineNumber(), item.getColumnNumber(), item.getPath()));
+        }
+      }
+      else {
+        if (mo != null && !mo.equals("")) {
+          // referenced overlay does not reference this content document
+          report.message(MessageId.MED_013, EPUBLocation.create(path, item.getLineNumber(), item.getColumnNumber(), item.getPath()));
         }
       }
     }
